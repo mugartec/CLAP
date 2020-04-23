@@ -229,7 +229,7 @@ elif [ "$#" -eq 2 ]; then
         -s | --show)
             show_password "$filename"
             ;;
-        -nt | --new-token-secret)
+        -nt | --new-token)
             new_totp_secret "$filename"
             ;;
         *)
