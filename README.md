@@ -8,7 +8,7 @@ Clap is a (very) simple password manager for the command line. It works on most 
 
 You'll need `openssl` and `xclip`. For example, in a debian-based distribution you'd need to
 ```
-sudo apt install openssl xclip
+apt install openssl xclip
 ```
 
 ### Steps
@@ -48,6 +48,4 @@ Using CLAP is very simple. Here is the output of `clap -h`
 ```
 
 ## Autocomplete
-For instructions on how to install autocompletion go to [https://github.com/mugartec/CLAP/autocompletion].
-
-Autocompletion is only supported for [oh-my-zsh](https://github.com/ohmyzsh/ohmyzsh) at the moment, contributions to allow autocomplete in other environments are very welcome.
+For instructions on how to install autocompletion go to the [autocomplete directory](https://github.com/mugartec/CLAP/tree/master/autocomplete).
