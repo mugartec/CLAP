@@ -1,0 +1,182 @@
+#!/bin/bash 
+
+set -o nounset
+set -o errexit
+set -o pipefail
+
+BASE_DIR="${HOME}/.clap"
+PASS_DIR="${BASE_DIR}/data"
+CONF_DIR="${BASE_DIR}/conf"
+CONF_FILE="${CONF_DIR}/clap.conf"
+
+
+function print_options(){
+    echo " "
+    echo "##################################################"
+    echo "#### CLAP - Command Line Accessible Passwords ####"
+    echo "##################################################"
+    echo " "
+    echo "    usage: clap <option> entry_name"
+    echo ""
+    echo "    options:"
+    echo "    -n, --new       new manually-generated password"
+    echo "    -g, --generate  new randomly-generated password"
+    echo "    -c, --copy      copy password to clipboard"
+    echo "    -s, --show      show password in plaintext"
+    echo ""
+}
+
+
+function ask_password(){
+    IFS="" read -p "${1}" -s -r passwd ; echo 
+    printf -v passwd "%q" "$passwd" #scape special characters
+    eval $2="'$passwd'"
+    unset passwd
+}
+
+
+function password_input(){
+    ask_password "Insert new password (hidden): " _pass
+    eval $1="$_pass"
+    unset _pass
+}
+
+
+function ask_master_password(){
+    salt=$(head -n 1 "$CONF_FILE")
+    h=$(tail -1 "$CONF_FILE")
+    ask_password "Insert master password (hidden): " _master
+    _result=$(echo "$_master${salt}" | sha256sum)
+    if [ "${_result: 0: -3}" = "$h" ]; then
+        eval $1="$_master"
+    else
+        echo "Wrong password, bye!"
+        exit 1
+    fi
+    unset _master
+    unset _result
+}
+
+
+function create_master_password(){
+    salt=$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c 30)
+
+    ask_password "Insert the master password (hidden): " master
+    checksum=$(echo "${master}${salt}" | sha256sum)
+    unset master
+
+    echo "Storing salt and checksum of (password + salt)..."
+    printf "${salt}\n${checksum: 0: -3}" > "${CONF_FILE}"
+    unset salt
+    unset checksum
+    echo "${CONF_FILE} saved correctly."
+}
+
+
+function initialize(){
+    echo "It looks like you are running CLAP for the first time, welcome!"
+    if [ ! -d "$CONF_DIR" ]; then
+        echo "Creating config directory: ${CONF_DIR}"
+        mkdir -p "$CONF_DIR"
+    fi
+    if [ ! -d "$PASS_DIR" ]; then
+        echo "Creating encrypted passwords directory: ${PASS_DIR}"
+        mkdir "$PASS_DIR"
+    fi
+    create_master_password
+    print_options
+}
+
+
+function generate_password(){
+    opt="y"
+    if [ -f "$1" ]; then
+        read -p "$1 already exists. Overwrite [y/N] " opt 
+    fi
+
+    if [[ "${opt}" =~ ^[Yy]$ ]] ; then 
+        new_pass=$(apg -a 1 -n 1 -m 15 -x 20)
+        ask_master_password master
+        echo -n "$new_pass" | openssl aes-256-cbc -pbkdf2 -k "$master" -out "$1"
+        unset master
+        echo -n "$new_pass" | xclip -sel clip
+        unset new_pass
+        echo "Created $1"
+        echo "New password copied to the clipboard"
+    fi
+}
+
+
+function new_password(){
+    opt="y"
+    if [ -f "$1" ]; then
+        read -p "$1 already exists. Overwrite [y/N] " opt 
+    fi
+
+    if [[ "${opt}" =~ ^[Yy]$ ]] ; then 
+        password_input new_pass 
+        ask_master_password master
+        echo -n "$new_pass" | openssl aes-256-cbc -pbkdf2 -k "$master" -out "$1"
+        unset master
+        echo -n "$new_pass" | xclip -sel clip
+        unset new_pass
+        echo "created ${1}"
+        echo "New password copied to the clipboard"
+    fi
+}
+
+
+function copy_password(){
+    if [ -f "$1" ]; then
+        ask_master_password master
+        pass=$(openssl aes-256-cbc -d -pbkdf2 -k "$master" -in "$1")
+        unset master
+        echo -n "$pass" | xclip -sel clip
+        unset pass
+        echo "Password copied to clipboard"
+    else
+        echo "File not found: $1."
+        exit 1
+    fi
+}
+
+
+function show_password(){
+    if [ -f "$1" ]; then
+        ask_master_password master
+        pass=$(openssl aes-256-cbc -d -pbkdf2 -salt -k "$master" -in "$1")
+        unset master
+        echo -n "${pass: 0: -1}"
+        unset pass
+    else
+        echo "File not found: $1."
+        exit 0
+    fi
+}
+
+
+if [ ! -f "$CONF_FILE" ]; then
+    initialize
+
+elif [ "$#" -eq 2 ]; then
+    filename="${PASS_DIR}/${2}.enc"
+    case "$1" in
+        -g | --generate)
+            generate_password "$filename"
+            ;;
+        -n | --new)
+            new_password "$filename"
+            ;;
+        -c | --copy)
+            copy_password "$filename"
+            ;;
+        -s | --show)
+            show_password "$filename"
+            ;;
+        *)
+            print_options
+            ;;
+    esac
+else
+    print_options
+fi

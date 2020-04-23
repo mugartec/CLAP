@@ -1,0 +1,30 @@
+#compdef clap
+#
+
+_clap() {
+  local state
+
+	_arguments \
+		'1: :->mode'\
+		'2: :->entry'
+
+	subcmds=('-n: new manually-generated password'
+			    '-g: new randomly-generated password'
+					'-c: copy password to clipboard'
+					'-s: show password in plaintext')
+
+	case $state in
+		mode)
+				_describe 'mode' subcmds
+			;;
+		entry) 
+				local -a entries
+				entries=( ~/.clap/data/*.enc )
+				declare -a filenames=( "${entries[@]%.*}" )
+				filenames=( "${filenames[@]##*/}" )
+				_values $filenames
+			;;
+	esac
+}
+
+_clap "$@"
