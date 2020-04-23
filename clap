@@ -158,6 +158,7 @@ function copy_password(){
     token_filename="$1.totp"
     if [ -f "$token_filename" ]; then
         totp_secret=$(openssl aes-256-cbc -d -pbkdf2 -k "$master" -in "$token_filename")
+        unset master
         read -p "Press enter to copy the TOTP token (Ctrl+C to cancel):"
         token=$(oathtool -b --totp "$totp_secret")
         unset totp_secret
