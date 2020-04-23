@@ -165,8 +165,9 @@ function copy_password(){
         echo -n "$token" | xclip -sel clip
         unset token
         echo "Token copied to clipboard"
+    else
+        unset master
     fi
-    unset master
 }
 
 
