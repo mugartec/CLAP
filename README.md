@@ -6,9 +6,9 @@ Clap is a (very) simple password manager for the command line. It works on most 
 
 ### Dependencies
 
-You'll need `openssl` and `xclip`. For example, in a debian-based distribution you'd need to
+You'll need `openssl`, `oathtool` and `xclip`. For example, in a debian-based distribution you'd need to
 ```
-apt install openssl xclip
+apt install openssl oathtool xclip
 ```
 
 ### Steps
@@ -24,12 +24,6 @@ git clone https://github.com/mugartec/CLAP.git ~/.clap
 cp ~/.clap/clap ~/.bin
 ```
 
-3) Make the script executable
-
-```
-chmod +x ~/.bin/clap
-```
-
 ## Using CLAP
 Using CLAP is very simple. Here is the output of `clap -h`
 
@@ -41,10 +35,11 @@ Using CLAP is very simple. Here is the output of `clap -h`
     usage: clap <option> entry_name
 
     options:
-    -n, --new       new manually-generated password
-    -g, --generate  new randomly-generated password
-    -c, --copy      copy password to clipboard
-    -s, --show      show password in plaintext
+    -n, --new          new manually-generated password
+    -g, --generate     new randomly-generated password
+    -c, --copy         copy password to clipboard
+    -s, --show         show password in plaintext
+    -nt, --new-token   assign a TOTP token secret to a password
 ```
 
 ## Autocomplete
