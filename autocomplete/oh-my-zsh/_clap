@@ -9,15 +9,16 @@ _clap() {
 		'2: :->entry'
 
 	subcmds=('-n: new manually-generated password'
-			    '-g: new randomly-generated password'
-					'-c: copy password to clipboard'
-					'-s: show password in plaintext')
+             '-g: new randomly-generated password'
+             '-c: copy password to clipboard'
+             '-s: show password in plaintext'
+             '-nt: assign a TOTP secret to an existing password')
 
 	case $state in
 		mode)
 				_describe 'mode' subcmds
 			;;
-		entry) 
+		entry)
 				local -a entries
 				entries=( ~/.clap/data/*.enc )
 				declare -a filenames=( "${entries[@]%.*}" )

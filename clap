@@ -1,4 +1,4 @@
-#!/bin/bash 
+#!/bin/bash
 
 set -o nounset
 set -o errexit
@@ -19,16 +19,17 @@ function print_options(){
     echo "    usage: clap <option> entry_name"
     echo ""
     echo "    options:"
-    echo "    -n, --new       new manually-generated password"
-    echo "    -g, --generate  new randomly-generated password"
-    echo "    -c, --copy      copy password to clipboard"
-    echo "    -s, --show      show password in plaintext"
+    echo "    -n, --new          new manually-generated password"
+    echo "    -g, --generate     new randomly-generated password"
+    echo "    -c, --copy         copy password to clipboard"
+    echo "    -s, --show         show password in plaintext"
+    echo "    -nt, --new-token   assign a TOTP token secret to a password"
     echo ""
 }
 
 
 function ask_password(){
-    IFS="" read -p "${1}" -s -r passwd ; echo 
+    IFS="" read -p "${1}" -s -r passwd ; echo
     printf -v passwd "%q" "$passwd" #scape special characters
     eval $2="'$passwd'"
     unset passwd
@@ -39,6 +40,22 @@ function password_input(){
     ask_password "Insert new password (hidden): " _pass
     eval $1="$_pass"
     unset _pass
+}
+
+
+function ask_totp_secret(){
+    read -p "${1}" -s -r totp_secret; echo
+    # Capitalize, remove whitespaces
+    totp_secret=$(echo "${totp_secret}" | tr a-z A-Z | tr -d '[:space:]')
+    eval $2="'$totp_secret'"
+    unset totp_secret
+}
+
+
+function totp_secret_input(){
+    ask_totp_secret "Insert new TOTP secret (hidden): " _totp_secret
+    eval $1="$_totp_secret"
+    unset _totp_secret
 }
 
 
@@ -91,10 +108,10 @@ function initialize(){
 function generate_password(){
     opt="y"
     if [ -f "$1" ]; then
-        read -p "$1 already exists. Overwrite [y/N] " opt 
+        read -p "$1 already exists. Overwrite [y/N] " opt
     fi
 
-    if [[ "${opt}" =~ ^[Yy]$ ]] ; then 
+    if [[ "${opt}" =~ ^[Yy]$ ]] ; then
         new_pass=$(apg -a 1 -n 1 -m 15 -x 20)
         ask_master_password master
         echo -n "$new_pass" | openssl aes-256-cbc -pbkdf2 -k "$master" -out "$1"
@@ -110,11 +127,11 @@ function generate_password(){
 function new_password(){
     opt="y"
     if [ -f "$1" ]; then
-        read -p "$1 already exists. Overwrite [y/N] " opt 
+        read -p "$1 already exists. Overwrite [y/N] " opt
     fi
 
-    if [[ "${opt}" =~ ^[Yy]$ ]] ; then 
-        password_input new_pass 
+    if [[ "${opt}" =~ ^[Yy]$ ]] ; then
+        password_input new_pass
         ask_master_password master
         echo -n "$new_pass" | openssl aes-256-cbc -pbkdf2 -k "$master" -out "$1"
         unset master
@@ -130,14 +147,25 @@ function copy_password(){
     if [ -f "$1" ]; then
         ask_master_password master
         pass=$(openssl aes-256-cbc -d -pbkdf2 -k "$master" -in "$1")
-        unset master
         echo -n "$pass" | xclip -sel clip
         unset pass
         echo "Password copied to clipboard"
     else
         echo "File not found: $1."
+        unset master
         exit 1
     fi
+    token_filename="$1.totp"
+    if [ -f "$token_filename" ]; then
+        totp_secret=$(openssl aes-256-cbc -d -pbkdf2 -k "$master" -in "$token_filename")
+        read -p "Press enter to copy the TOTP token (Ctrl+C to cancel):"
+        token=$(oathtool -b --totp "$totp_secret")
+        unset totp_secret
+        echo -n "$token" | xclip -sel clip
+        unset token
+        echo "Token copied to clipboard"
+    fi
+    unset master
 }
 
 
@@ -151,6 +179,32 @@ function show_password(){
     else
         echo "File not found: $1."
         exit 0
+    fi
+}
+
+
+function new_totp_secret(){
+    if [ ! -f "$1" ]; then
+        echo "File not found: $1"
+        exit 1
+    fi
+
+    filename=$1.totp
+    opt="y"
+    if [ -f "$filename" ]; then
+        read -p "$filename already exists. Overwrite [y/N] " opt
+    fi
+    if [[ "${opt}" =~ ^[Yy]$ ]] ; then
+        totp_secret_input new_totp_secret
+        token=$(oathtool -b --totp "$new_totp_secret")  # Checks Base32 string
+        ask_master_password master
+        echo -n "$new_totp_secret" | openssl aes-256-cbc -pbkdf2 -k "$master" -out "$filename"
+        unset master
+        unset new_totp_secret
+        echo "created $filename"
+        echo -n "$token" | xclip -sel clip
+        unset token
+        echo "Token copied to clipboard (recommended: test this token now)"
     fi
 }
 
@@ -172,6 +226,9 @@ elif [ "$#" -eq 2 ]; then
             ;;
         -s | --show)
             show_password "$filename"
+            ;;
+        -nt | --new-token-secret)
+            new_totp_secret "$filename"
             ;;
         *)
             print_options
