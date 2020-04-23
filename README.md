@@ -24,12 +24,6 @@ git clone https://github.com/mugartec/CLAP.git ~/.clap
 cp ~/.clap/clap ~/.bin
 ```
 
-3) Make the script executable
-
-```
-chmod +x ~/.bin/clap
-```
-
 ## Using CLAP
 Using CLAP is very simple. Here is the output of `clap -h`
 
